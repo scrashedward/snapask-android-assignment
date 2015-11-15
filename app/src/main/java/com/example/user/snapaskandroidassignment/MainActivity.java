@@ -1,4 +1,5 @@
 package com.example.user.snapaskandroidassignment;
+import android.app.Activity;
 import android.graphics.ColorFilter;
 import android.net.ConnectivityManager;
 
@@ -24,11 +25,13 @@ import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentTabHost;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.text.InputType;
 import android.util.Log;
 import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -50,6 +53,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.w3c.dom.Text;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -75,6 +79,11 @@ public class MainActivity extends FragmentActivity {
     String school = new String();
     String subject = new String();
     Drawable roundPic;
+    String newEmail = null;
+    String oldEmail = null;
+    String oldPhone = null;
+    String newPhone = null;
+    View v;
 
 
     List<HashMap<String,String>> aList = new ArrayList<HashMap<String,String>>();
@@ -82,6 +91,9 @@ public class MainActivity extends FragmentActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        /** Hide the actionbar **/
+
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
 //                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
@@ -90,12 +102,15 @@ public class MainActivity extends FragmentActivity {
                         | View.SYSTEM_UI_FLAG_FULLSCREEN
                         | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
 
-        if(isOnline())Log.d("scrash","now online");
+
+        /** Get Json Object and parse it in a Thread since http request could not be called in main thread **/
+
+        if(!isOnline())Log.d("scrash","not online");
+
         Thread jsonInfo = new Thread(new Runnable() {
             @Override
             public void run() {
                 String jsonString = getJSON("https://api.myjson.com/bins/4zujh");
-                Log.d("scrash",jsonString);
                 try{
                     JSONObject jsonObject = new JSONObject(jsonString);
                     JSONObject dataObject = jsonObject.getJSONObject("data");
@@ -106,7 +121,6 @@ public class MainActivity extends FragmentActivity {
                     school = dataObject.getString("school_name");
                     JSONArray subjectArray = dataObject.getJSONArray("subjects");
                     subject = subjectArray.getJSONObject(0).getString("abbr");
-                    Log.d("scrash", subject);
                     URL url = new URL(picUrl);
                     Bitmap profilePic = BitmapFactory.decodeStream(url.openConnection().getInputStream());
                     roundPic = new RoundImage(profilePic);
@@ -117,25 +131,25 @@ public class MainActivity extends FragmentActivity {
             }
         });
 
+        /** Start the thread then wait till it terminated to continue Main thread **/
+
         jsonInfo.start();
         try {
             jsonInfo.join();
         }catch(InterruptedException e){
             Log.d("scrash","error joining jsonInfo");
         }
-
+        /** Setting Profile Image **/
 
         ImageView profilePicView = (ImageView) findViewById(R.id.profilePic);
         profilePicView.setImageDrawable(roundPic);
-        //profilePicView.getLayoutParams().height = 150;
-        //profilePicView.getLayoutParams().width = 150;
+
+
+        /** Setting Background Image **/
 
         Display display = getWindowManager().getDefaultDisplay();
         Point size = new Point();
         display.getSize(size);
-
-
-        /* Background Image part*/
 
         ImageView backgroundPicView = (ImageView) findViewById(R.id.background);
         backgroundPicView.setBackgroundResource(R.drawable.background);
@@ -144,13 +158,13 @@ public class MainActivity extends FragmentActivity {
 
 
 
-        /* Tab part */
+        /** Tab Setup **/
 
         TabHost tabHost = (TabHost) findViewById(R.id.tabHost);
         tabHost.setup();
+        tabHost.getTabWidget().setDividerDrawable(null);
 
-
-        /* Tab one:*/
+        /** Tab one, loading list and make it editable through popup window **/
 
         TabHost.TabSpec tabSpec = tabHost.newTabSpec("info");
         tabSpec.setContent(R.id.infoTab);
@@ -184,9 +198,69 @@ public class MainActivity extends FragmentActivity {
 
         ListView listView = (ListView) findViewById(R.id.infoList);
         listView.setAdapter(adapter);
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                v = view;
+                TextView tmpDes = (TextView) view.findViewById(R.id.des);
+                TextView tmpData = (TextView) view.findViewById(R.id.data);
+                if(tmpDes.getText().toString() == "email"){
+                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    builder.setTitle("Edit email");
 
+                    final EditText input = new EditText(MainActivity.this);
+                    input.setInputType(InputType.TYPE_CLASS_TEXT);
+                    builder.setView(input);
 
-        /* Tab two: */
+                    builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            newEmail = input.getText().toString();
+                            TextView tmpData = (TextView) v.findViewById(R.id.data);
+                            if(oldEmail == null )oldEmail = tmpData.getText().toString();
+                            tmpData.setText(input.getText());
+                        }
+                    });
+                    builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.cancel();
+                        }
+                    });
+
+                    builder.show();
+                }
+                else if(tmpDes.getText().toString() == "phone"){
+                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                    builder.setTitle("Edit phone");
+
+                    final EditText input = new EditText(MainActivity.this);
+                    input.setInputType(InputType.TYPE_CLASS_TEXT);
+                    builder.setView(input);
+
+                    builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            newPhone = input.getText().toString();
+                            TextView tmpData = (TextView) v.findViewById(R.id.data);
+                            if(oldPhone == null)oldPhone = tmpData.getText().toString();
+                            tmpData.setText(input.getText());
+                        }
+                    });
+                    builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.cancel();
+                        }
+                    });
+
+                    builder.show();
+
+                }
+            }
+        });
+
+        /** Tab two, set spinners **/
 
         tabSpec = tabHost.newTabSpec("Payment");
         tabSpec.setContent(R.id.paymentTab);
@@ -241,7 +315,7 @@ public class MainActivity extends FragmentActivity {
         );
 
 
-        /* Tab three: */
+        /** Tab three: **/
 
 
         tabSpec = tabHost.newTabSpec("Setting");
@@ -249,7 +323,7 @@ public class MainActivity extends FragmentActivity {
         tabSpec.setIndicator("Setting");
         tabHost.addTab(tabSpec);
 
-        tabHost.getTabWidget().setDividerDrawable(null);
+        /** Change Tab appearance and Tab text color **/
 
         for(int i=0 ; i< tabHost.getTabWidget().getTabCount();i++) {
             tabHost.getTabWidget().getChildTabViewAt(i).setBackgroundResource(R.drawable.apptheme_tab_indicator_holo);
@@ -266,6 +340,8 @@ public class MainActivity extends FragmentActivity {
 
     }
 
+    /** This function tests if user have access to the internet **/
+
     public boolean isOnline() {
         ConnectivityManager cm =
                 (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -273,14 +349,14 @@ public class MainActivity extends FragmentActivity {
         return netInfo != null && netInfo.isConnectedOrConnecting();
     }
 
+    /** This function gets JSON object from certain URL **/
+
     public String getJSON(String address){
         StringBuilder builder = new StringBuilder();
         HttpClient client = new DefaultHttpClient();
         HttpGet httpGet = new HttpGet(address);
-        Log.d("scrash","here");
         try{
             HttpResponse response = client.execute(httpGet);
-            Log.d("scrash","here");
             StatusLine statusLine = response.getStatusLine();
             int statusCode = statusLine.getStatusCode();
             if(statusCode == 200){
@@ -300,6 +376,22 @@ public class MainActivity extends FragmentActivity {
             e.printStackTrace();
         }
         return builder.toString();
+    }
+
+
+    /** Record if there's a change of the phone or email**/
+
+    @Override
+    protected void onPause(){
+        super.onPause();
+        if(oldPhone!=null){
+            Log.d("datachanged","Phone has been changed from "+oldPhone+" to "+newPhone);
+            oldPhone = null;
+        }
+        if(oldEmail!=null){
+            Log.d("datachanged","Email has been changed from "+oldEmail+" to "+newEmail);
+            oldEmail = null;
+        }
     }
 
 

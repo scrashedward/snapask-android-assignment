@@ -104,7 +104,9 @@
                         android:elegantTextHeight="true"
                         android:layout_alignParentTop="true"
                         android:layout_centerHorizontal="true"
-                        android:layout_marginTop="10dp" />
+                        android:layout_marginTop="10dp"
+                        android:textOn="On"
+                        android:textOff="Off"/>
 
                     <Switch
                         android:layout_width="wrap_content"
@@ -116,7 +118,9 @@
                         android:layout_below="@+id/notification"
                         android:layout_alignRight="@+id/notification"
                         android:layout_alignEnd="@+id/notification"
-                        android:layout_marginTop="10dp" />
+                        android:layout_marginTop="10dp"
+                        android:textOn="On"
+                        android:textOff="Off" />
 
                     <TextView
                         android:layout_width="320dp"
