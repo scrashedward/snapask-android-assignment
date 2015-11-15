@@ -1,4 +1,5 @@
 package com.example.user.snapaskandroidassignment;
+import android.graphics.ColorFilter;
 import android.net.ConnectivityManager;
 
 import android.net.NetworkInfo;
@@ -46,6 +47,8 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -53,6 +56,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.ContentHandler;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -63,6 +68,15 @@ public class MainActivity extends FragmentActivity {
     public Vector<Integer> icon = new Vector<>();
     public Vector<String> data = new Vector<>();
     public Vector<String> des = new Vector<>();
+    String email = new String();
+    String phone = new String();
+    String username = new String();
+    String picUrl = new String();
+    String school = new String();
+    String subject = new String();
+    Drawable roundPic;
+
+
     List<HashMap<String,String>> aList = new ArrayList<HashMap<String,String>>();
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,13 +85,46 @@ public class MainActivity extends FragmentActivity {
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
 //                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
 //                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
 
-        Bitmap profilePic = BitmapFactory.decodeResource(getResources(),R.drawable.profile);
-        Drawable roundPic = new RoundImage(profilePic);
+        if(isOnline())Log.d("scrash","now online");
+        Thread jsonInfo = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                String jsonString = getJSON("https://api.myjson.com/bins/4zujh");
+                Log.d("scrash",jsonString);
+                try{
+                    JSONObject jsonObject = new JSONObject(jsonString);
+                    JSONObject dataObject = jsonObject.getJSONObject("data");
+                    email = dataObject.getString("email");
+                    username = dataObject.getString("username");
+                    picUrl = dataObject.getString("profile_pic_file_name");
+                    phone = dataObject.getString("phone");
+                    school = dataObject.getString("school_name");
+                    JSONArray subjectArray = dataObject.getJSONArray("subjects");
+                    subject = subjectArray.getJSONObject(0).getString("abbr");
+                    Log.d("scrash", subject);
+                    URL url = new URL(picUrl);
+                    Bitmap profilePic = BitmapFactory.decodeStream(url.openConnection().getInputStream());
+                    roundPic = new RoundImage(profilePic);
+                }
+                catch(JSONException|IOException e){
+                    Log.d("scrash", "error parsing Json Object");
+                }
+            }
+        });
+
+        jsonInfo.start();
+        try {
+            jsonInfo.join();
+        }catch(InterruptedException e){
+            Log.d("scrash","error joining jsonInfo");
+        }
+
+
         ImageView profilePicView = (ImageView) findViewById(R.id.profilePic);
         profilePicView.setImageDrawable(roundPic);
         //profilePicView.getLayoutParams().height = 150;
@@ -118,10 +165,10 @@ public class MainActivity extends FragmentActivity {
         icon.add(R.drawable.phone);
         icon.add(R.drawable.university);
         icon.add(R.drawable.heart);
-        data.add("brian@appedu.co");
-        data.add("6900 6900");
-        data.add("HKU");
-        data.add("Math, Phy, Chem");
+        data.add(email);
+        data.add(phone);
+        data.add(school);
+        data.add(subject);
 
         for(int i = 0; i < des.size(); i++ ){
             HashMap<String, String> hm = new HashMap<String,String>();
@@ -213,13 +260,7 @@ public class MainActivity extends FragmentActivity {
             //tabHost.getTabWidget().getChildTabViewAt(i).setBackgroundResource(R.drawable.indicator);
         }
 
-        if(isOnline())Log.d("scrash","now online");
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Log.d("scrash",getJSON("https://api.myjson.com/bins/4zujh"));
-            }
-        }).start();
+
 
 
 
@@ -231,7 +272,6 @@ public class MainActivity extends FragmentActivity {
         NetworkInfo netInfo = cm.getActiveNetworkInfo();
         return netInfo != null && netInfo.isConnectedOrConnecting();
     }
-
 
     public String getJSON(String address){
         StringBuilder builder = new StringBuilder();
